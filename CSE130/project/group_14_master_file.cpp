@@ -305,15 +305,37 @@ CLASS DEFINTION
 class Inventory
 /*
 CLASS DEFINTION 
-Class object to hold on to potions and armor for the player and ememies.
-Class needs to be able to pick up objects and store value on player
-if class implementation is too complicated, fallback is to create two seperate
-inventories for potions and armor. This would be implemented as global vectors
+Class object to hold on to potions for the player.
+Player will start game with 10 potions. 
+Class objecct will remove potion from inventory based on ParseUserInput command.
+This would be implemented as global variable
 and calls to vector.size() for number of potions available should be sufficent.
 Then we can add an attributes and methods to the player derived called 
 has_potion and potion_effect with a bool data type to indicate 
 when the option is not possible for the user to execute and how much health a potion heals. 
-To make armor simple, once user equips armor, can not unequip.
+
+
+PSEUDOCODE
+
+class Inventory
+private:
+    vector<int> inventory[10] = 0;
+
+public:
+
+void remove_item(){
+
+    inventory.remove(0) 
+
+}
+
+auto potion_count(){
+
+return inventory.size()
+
+}
+
+
 */ 
 {};
 
