@@ -12,7 +12,9 @@ using namespace std;
 
 
                                                                     CLASS BASIC DEFINITIONS & GAME STRUCTURE
-                                                                    (check specific sections for TODO and REFERENCETHIS tags)
+                                                                    For technical details of each object please use search (CTRL/CMD + F) for the relevant tag. 
+                                                                    TODO - list of tasks scoped and assigned for completion.
+                                                                    REFERENCETHIS - relevant book/online references to make our lives easier.
 
 Class
 
@@ -37,12 +39,13 @@ Construct a Do While loop calling each of the helper_functions.
         5.If player is dead then, exit the game.
         .... 
 
-TODO need to define win condition. 
+TODO need to more clearly define win condition. 
 
 Global non-class Variables (Used for gameplay)
 
-game_running
-battle
+game_running - flag for game running or not. Controlling expression for do while loop.
+battle - flag for battle while loop.
+has_key - user can exit the jail/ win the game
 
         
 
@@ -294,13 +297,15 @@ Purpose: Class contains a logical network of rooms. Each class instance needs to
 
 class ParseUserInput
 /*
-CLASS DEFINTION
+CLASS DEFINITION
  Take console input from user and search for game keywords. 
  Based on console input, do x action.
  see if one method can do a try/catch for user input.
  can also be a struct with a separate function and case staement if a class is too complicated.
  */
 {};
+
+
 
 class Inventory
 /*
@@ -441,3 +446,55 @@ ASCII art for Title ??? Saved as png file and also called with file_stream
 REFERENCETHIS C++ for the Absolute Beginner, pg 277 */
 
 {};
+
+
+// TODO move classes into separate .h files once build phase complete.
+
+
+
+/*
+=================================================================================================================================================================================================
+
+                                                MAIN GAME
+
+=================================================================================================================================================================================================
+
+
+
+*/
+
+#include <iostream>
+#include <string>
+#include <vector>
+using namespace std;
+
+
+
+//GLOBALS
+bool game_running = true;
+bool player_in_combat = false;
+bool user_has_key = false;
+
+
+
+//FUNCTION FORWARD DECLARATIONS
+
+
+
+
+//GAMEPLAY
+
+int main(void){
+
+
+
+
+
+
+
+
+return 0; }
+
+
+
+
