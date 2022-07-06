@@ -18,3 +18,19 @@ CSE635/Test1.Rmd
 *.txt
 
 CSE635/cheese.tsv
+
+.vscode/launch.json
+
+.vscode/tasks.json
+
+CSE130/Lab5.cpp
+
+CSE130/Lab5.exe
+
+CSE130/Lab5.ilk
+
+CSE130/Lab5.pdb
+
+CSE130/lab5_screenshot.png
+
+screenshot2.png
