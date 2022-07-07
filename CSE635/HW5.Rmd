@@ -1,0 +1,438 @@
+---
+title: "CSE 635 - HW5"
+author: "Miles Taylor"
+date: "7/4/2022"
+output: pdf_document
+---
+
+```{r, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(nnet)
+library(MASS)
+library(tidyverse)
+reticulate::use_condaenv('C:\\Users\\miles\\anaconda3\\envs\\StablePython3812\\python.exe')
+library(reticulate)
+library(kableExtra)
+library(broom)
+```
+
+
+
+```{python}
+import pandas as pd
+import numpy as np
+
+def calculate_sensitivity(input_array):
+  new_array = input_array.copy()
+  row_iterator = 0
+  column_iterator = 0
+  payload_list = []
+  for i in new_array:
+    true_positive = new_array[row_iterator, column_iterator]
+    model_prediction = np.sum(new_array[:,column_iterator])
+    freq = true_positive/model_prediction
+    payload_list.append(freq)
+    row_iterator += 1
+    column_iterator +=1
+  return_df = pd.DataFrame([payload_list]) 
+  return return_df
+    
+```
+
+
+1. Data preparation
+ - data reading from .txt file
+ 
+```{r}
+df=read.csv("CTG.txt", sep = "\t", header = TRUE)
+drops <- c("X","X.1", "X.2")
+df <- df[ , !(names(df) %in% drops)]
+```
+
+ - random seed
+ 
+```{r}
+set.seed(777)
+```
+ 
+ - data split with two subsets as training and testing by 7:3
+ 
+```{r}
+split=sample(2,nrow(df),replace = TRUE, prob = c(0.7, 0.3))
+train_df=df[split == 1,]
+test_df=df[split == 2,]
+```
+ 
+ - encoding CLASS as {0,1,2,3,4,5,6,7,8,9}
+ 
+ 
+```{r}
+train_df$CLASS <- train_df$CLASS - 1
+```
+ 
+
+2. Linear regression model
+ - running LM model with a training data
+ 
+```{r}
+naive_regress =lm(CLASS~.,data = train_df,  na.action=na.exclude)
+
+```
+ 
+ - listing summary or coefficients
+```{r}
+tidy(summary(naive_regress)) %>% kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                latex_options = "HOLD_position")
+```
+ 
+ 
+ - creating a predicted model (y hat) with training data
+
+```{r}
+refined_regress =lm(CLASS~ LB + AC + ASTV +MLTV +
+                    Min+Mean+Median+Variance+
+                    A+B+C+D+E+AD+DE+LD+FS+NSP ,
+                  data = train_df,  
+                  na.action=na.exclude)
+
+
+lm_training_data_yhat <- refined_regress$fitted.values
+```
+
+```{python}
+
+
+preds = np.array(r.lm_training_data_yhat)
+
+bucket_lm_yhat  = np.where(preds< 0, 0, np.floor(preds))
+
+```
+
+
+ - creating a confusion matrix with training data
+ 
+```{r}
+lm_confusion <- table(py$bucket_lm_yhat, train_df$CLASS)
+
+lm_confusion %>% kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                latex_options = "HOLD_position")
+
+```
+ 
+ - computing an accuracy and sensitivity with training data
+```{r}
+accuracy_confusion_matrix <- sum(diag(lm_confusion))/ sum(lm_confusion)
+
+pmc_1 <- 1 - accuracy_confusion_matrix
+
+print(paste("The accuracy score is: ", accuracy_confusion_matrix))
+print(paste("The Possibility of Misclassification is: ", pmc_1))
+
+
+```
+
+Sensitivity Scores are below: 
+
+```{r}
+py$calculate_sensitivity(lm_confusion) %>% kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                latex_options = "HOLD_position")
+
+```
+
+ - creating a predicted model (y hat) with testing data
+ 
+```{r}
+lm_test_prediction <- predict(refined_regress, test_df)
+```
+ 
+ - creating a confusion matrix with testing data
+ 
+```{python}
+test_preds = np.array(r.lm_test_prediction)
+
+bucket_lm_yhat_test  = np.where(test_preds< 0, 0, np.floor(test_preds))
+```
+ 
+ 
+```{r}
+lm_test_confusion <- table(py$bucket_lm_yhat_test, test_df$CLASS)
+
+lm_test_confusion %>% kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                latex_options = "HOLD_position")
+```
+ 
+ - computing an accuracy and sensitivity with testing data
+ 
+```{r}
+accuracy_confusion_matrix_test <- sum(diag(lm_test_confusion))/ sum(lm_test_confusion)
+
+
+
+pmc_2 <- 1 - accuracy_confusion_matrix_test
+
+
+print(paste("The accuracy score is: ", accuracy_confusion_matrix_test))
+print(paste("The Possibility of Misclassification is: ", pmc_2))
+
+
+```
+
+```{r}
+py$calculate_sensitivity(lm_test_confusion) %>% kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                latex_options = "HOLD_position")
+```
+ 
+
+3. Proportional odds logistic regression model
+
+
+ - converting type as a ordered for polr model
+ 
+```{r}
+train_df$CLASS <- as.ordered(train_df$CLASS)
+test_df$CLASS <- as.ordered(test_df$CLASS)
+
+```
+ 
+ - running polr model with a training data
+ 
+```{r}
+polr_train_regress <- polr(CLASS~ LB + AC + ASTV +MLTV +
+                    Min+Mean+Median+Variance+A,
+                  data = train_df,  
+                  na.action=na.exclude,
+                  Hess= TRUE)
+```
+
+ - listing summary or coefficients
+ 
+```{r}
+tidy(polr_train_regress)  %>% kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                latex_options = "HOLD_position")
+```
+ 
+ - creating a predicted model (y hat) with training data
+```{r}
+polr_train_fitted <- predict(polr_train_regress, train_df)
+```
+ 
+ - creating a confusion matrix with training data
+ 
+```{r}
+polr_train_confusion <- table(polr_train_fitted, train_df$CLASS)
+
+polr_train_confusion %>% kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                latex_options = "HOLD_position")
+```
+ 
+ - computing an accuracy and sensitivity with training data
+ 
+```{r}
+accuracy_train_polr <- sum(diag(polr_train_confusion))/ sum(polr_train_confusion)
+
+pmc_3 <- 1 - accuracy_train_polr
+
+
+print(paste("The accuracy score is: ", accuracy_train_polr))
+print(paste("The Possibility of Misclassification is: ", pmc_3))
+
+
+py$calculate_sensitivity(polr_train_confusion)%>% kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                latex_options = "HOLD_position")
+```
+ 
+ 
+```{r}
+polr_test_prediction <- predict(polr_train_regress, test_df)
+```
+ 
+ - creating a confusion matrix with testing data
+ 
+```{python}
+v = np.array(r.polr_test_prediction)
+test_polr_preds = v.astype(int)
+```
+ 
+ 
+```{r}
+polr_test_confusion <- table(py$test_polr_preds, test_df$CLASS)
+
+polr_test_confusion %>% kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                latex_options = "HOLD_position")
+```
+ 
+ - computing an accuracy and sensitivity with testing data
+ 
+```{r}
+accuracy_confusion_polr_test <- sum(diag(polr_test_confusion))/ sum(polr_test_confusion)
+
+pmc_4 <- 1 - accuracy_confusion_polr_test
+
+
+
+print(paste("The accuracy score is: ", accuracy_confusion_polr_test))
+print(paste("The Possibility of Misclassification is: ", pmc_4))
+
+
+```
+
+```{r}
+
+py$calculate_sensitivity(polr_test_confusion) %>% kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                latex_options = "HOLD_position")
+```
+ 
+
+4. Multinomial logistic regression model
+
+ - converting type as a factor for multinomial model
+ 
+```{r}
+train_df$CLASS <- as.factor(train_df$CLASS)
+test_df$CLASS <- as.factor(test_df$CLASS)
+
+```
+ 
+ - running multinomial model with a training data
+ 
+```{r}
+
+multinom_train_regress <- multinom(CLASS~ LB + AC + ASTV +MLTV +
+                    Min+Mean+Median+Variance+A,
+                  data = train_df,  
+                  na.action=na.exclude)
+
+```
+ 
+ - listing summary or coefficients
+ 
+```{r}
+tidy(multinom_train_regress)  %>% kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                latex_options = "HOLD_position")
+```
+ 
+ - creating a predicted model (y hat) with training data
+ 
+```{r}
+yhat_train_multinom=predict(multinom_train_regress,train_df)
+
+```
+ 
+ - creating a confusion matrix with training data
+ 
+ 
+```{python}
+u = np.array(r.yhat_train_multinom)
+train_multinom_preds = u.astype(int)
+```
+ 
+ 
+```{r}
+multinom_train_confusion <- table(py$train_multinom_preds, train_df$CLASS)
+
+multinom_train_confusion %>% kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                latex_options = "HOLD_position")
+```
+ 
+ 
+ - computing an accuracy and sensitivity with training data
+ 
+ 
+```{r}
+accuracy_train_multinom <- sum(diag(multinom_train_confusion))/ sum(multinom_train_confusion)
+
+pmc_5<- 1 - accuracy_train_multinom
+
+print(paste("The accuracy score is: ", accuracy_train_multinom))
+print(paste("The Possibility of Misclassification is: ", pmc_5))
+
+
+```
+ 
+```{r}
+
+py$calculate_sensitivity(multinom_train_confusion) %>% kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                latex_options = "HOLD_position")
+```
+ 
+ - creating a predicted model (y hat) with testing data
+ 
+
+```{r}
+multinom_test_prediction <- predict(multinom_train_regress, test_df)
+```
+ 
+ - creating a confusion matrix with testing data
+ 
+```{python}
+w = np.array(r.multinom_test_prediction)
+test_multinom_preds = w.astype(int)
+```
+ 
+ 
+```{r}
+multinom_test_confusion <- table(py$test_multinom_preds, test_df$CLASS)
+
+multinom_test_confusion %>% kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                latex_options = "HOLD_position")
+```
+ 
+ - computing an accuracy and sensitivity with testing data
+ 
+```{r}
+accuracy_confusion_mn_test <- sum(diag(multinom_test_confusion))/ sum(multinom_test_confusion)
+
+pmc_6 <- 1 - accuracy_confusion_mn_test
+
+print(paste("The accuracy score is: ", accuracy_confusion_mn_test))
+print(paste("The Possibility of Misclassification is: ", pmc_6))
+
+```
+
+```{r}
+py$calculate_sensitivity(multinom_test_confusion) %>% kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                latex_options = "HOLD_position")
+
+```
+
+
+
+
+
+5. Conclusion: Better model and reason.
+
+Winner: Multinomial Model. 
+
+The linear model is TOO good. The training model after removing the
+insignificant variables results is 1. The possibility of misclassifcation
+is near 2%. These model results are theoretically amazing, but I am
+very skeptical of the power of this model to generalize on datasets
+outside of the test.For instance, if we were to split the dataset into
+train-test-validate subgroups, we might see drastically different results.
+Furthermore, there is an inversely proportional relationship between
+the sensitivity of a model and the specificity so the true predictive
+power of the model is lopsided. 
+
+The ordinal logistic regression doesn't compete against the other two models.
+Unfortunately, not all levels are being predicted by the model. Indeed, in order
+for the model to even converge, required work on my part to remove some
+multicolinearity issues. 
+
+The multinomial model is a great in between of the strong (but misleading) results
+of the linear model and the disaster of the ordinal logistic regression. 
+The possibility of misclassification is 17%
