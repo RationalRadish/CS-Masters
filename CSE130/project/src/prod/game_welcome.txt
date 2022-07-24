@@ -1,0 +1,6 @@
+The Thrall have invaded your homeland and taken your village after a centuries long bloody conflict. 
+It has been 80 long days and nights since you have been held captive in this prison. 
+Last night you overheard the guards talking about executing all the prisoners since the war is over.
+Today is your last chance for escape. Traverse the maze, enter every room, and beat all the guards. Only then will you find a key to free ytour family.
+
+Developers --  Miles Taylor, Harka Katwal, Kenneth Swadley, and Corey Mcclain
