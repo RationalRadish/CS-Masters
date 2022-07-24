@@ -9,17 +9,7 @@ using namespace std;
 
 class Player
 /* Purpose: Boilerplate class for all players in the game. 
-   Returns: Object instace of class Player.
-NOTES FOR FUTURE    class keeps track of player location. The room and map objects are only called for navigation. 
-                    class keeps track of player dead/alive status. It will be called in the Battle Function, but the scope of battle is to only give command for battle.
-                    Int Location keeps track of player in terms of the map for Vector traversal. String location is what is shown to the user.
-TODO extend Player into 3 subclasses security officer, command officer, and enemy.
-       These subclasses will inherit base traits and attributes of player (Are you alive, what your name, what's your location)
-       Also will add in traits for battle based on subclass. Specifics are below -- 
-       command officer will have more strength and less dexterity. 
-       security officer will have less strength but more dexterity.
-       Each subclass also has potion method that allows them to restore health.
-REFERENCETHIS C++ For Absolute Beginners Pg 201 
+   Return: Object instace of class Player.
 */ 
 {
 
@@ -141,6 +131,8 @@ REFERENCETHIS C++ For Absolute Beginners Pg 201
 
 };
 
+//call the same thing a different name for convienence sake. (Player and Enemy)
+
 class Enemy: public Player {
 
 
@@ -206,11 +198,13 @@ Purpose: Class contains a logical network of rooms. Each class instance needs to
         
         Room* create_room_node(int number, string name)
         /*Purpose: Create an instance of Room every time this function is called. 
-          RETURN: pointer to isntance of class object set with arguments passed. */
+         :Param:number - number designation of the room (0 -> N + 1)
+         :Param:name - name of the room
+          Return: pointer to instance of class object set with arguments passed. */
          {
             // Create a room instance and assign a pointer to it for mutation.
-            //dereference the member functions of the class through operator precedence.
-            //Meant to be assigned to a Vector.
+            // dereference the member functions of the class through operator precedence.
+            // Meant to be assigned to a Vector.
             
             Room *room = new Room; 
             (*room).set_id(number);   //https://docs.microsoft.com/en-us/cpp/cpp/pointers-to-members?view=msvc-170
@@ -224,12 +218,13 @@ Purpose: Class contains a logical network of rooms. Each class instance needs to
 
         vector<Room*> get_connected_rooms(Room& nodes)
         /* Purpose: From node n, display a list of all possible vertices that link to n 
-           Return: vector of rooms that connect to current room. */
+           :Param: &nodes - address of nodes. Expects a Room object. Best practice is to supply a Room Ptr.
+            Return: vector of rooms that connect to current room. */
         {
             //
             auto connected_rooms = edges[&nodes];
             return vector<Room*>(connected_rooms.begin(),
-                                connected_rooms.end()); //right now this will return all paths n+1, but want to limit it to 3 paths. n-1, n, and n+1. 
+                                connected_rooms.end()); 
             
 
         }
@@ -237,11 +232,17 @@ Purpose: Class contains a logical network of rooms. Each class instance needs to
 
         void create_edge(Room& source, Room& destination)
         /* Purpose: Create an adjacency list implicitly by defining edges as two nodes. 
+           Return: Function returns nothing. All stored in the graph object. This way the object has authority over the constructing
+                    and destructing the ptr.
         
         
          Note:
-               1. Mathematically, now the number of edges for a connected graph is n!/(n-2)2! or n(n-1)/2 -- Discrete Mathematics, Kenneth Ross Pg 186
-               2. Pass in references to the Room pointer. 
+                1. Mathematically we are creating a directed graph between the source and the sink nodes.
+                   Since we are requiring the player to enter every node for the game,
+                  we create Euler circuits by making all the degree sequences even. A png image is supplied of the work done beforehand.
+                2. Programmaticially accomplished through use of the map data structure. Each node is a pointer. This functionally means
+                  we can create a table of lookup values between {node 1, node 2,..,node n} to respective adjacency list of nodes.
+        
         
        */
         {
@@ -249,7 +250,7 @@ Purpose: Class contains a logical network of rooms. Each class instance needs to
             auto& adjacents = edges[&source]; 
             auto start = adjacents.begin();
             auto stop = adjacents.end();
-            //if edge does not exist between vertices then 
+            //if edge does not exist between vertices then directionally link them
             if (find(start, stop, &destination) == adjacents.end()) {   //https://linuxhint.com/find-value-vector-cpp/
                 adjacents.push_back(&destination);} 
              // do nothing if the edge already exists.
@@ -276,7 +277,7 @@ Player player_one;
 Inventory player_backpack;
 vector <Enemy> enemy_forces_assembled(10);
 vector <string> game_locations = {"Holding Cell", "Arena Room 1", "Arena Room 2", "Arena Room 3", "Arena Room 4", "Arena Room 5", 
-                                "Arena Room 6", "Arena Room 7", "Arena Room 8", "Arena Room 9", "Jailor's Room"};
+                                "Arena Room 6", "Arena Room 7", "Arena Room 8", "Arena Room 9"};
 
 // FUNCTION FORWARD DECLARATIONS
 int class_choice();
@@ -299,38 +300,60 @@ void navigational_console_command();
 
 
 int main(){
+    //hydrate the enemy forces
     for(int i = 0; i < enemy_forces_assembled.size(); i++) {enemy_forces_assembled[i].set_name("Enemy");};
+    //create the map
     for (int i = 0; i < game_locations.size(); i++){
         auto* const location = cartograph.create_room_node(i, game_locations.at(i));
         arena.push_back(location);}
+    //show welcome
     welcome_screen();
+    //get user name
     name_decision();
+    // get the class
     get_class_decision = class_choice();
+    //based on user and user choice. Alter user stats.
     ready_player_one(get_class_decision);
     show_all_player_stats(player_one);
     load_game_map();
+    //give default values to the starting location of the player
     player_one.set_int_location(0);
     player_one.set_string_location("Holding Cell");
+    //start an infinite loop. Respective functions have the exit() call nested inside.
     while(game_running)
     {
+        //if player is at the start, just have them move to another room.
      if(player_one.get_int_location() == 0 && total_rooms_visited == 0)navigational_console_command();
 
      else{
-
+        //otherwise initiate the proper loop. Player can pick up a defense and offensive power up based on number of rooms visited.
         place_armor_in_room(get_class_decision, total_rooms_visited);
         place_weapon_in_room(get_class_decision, total_rooms_visited);
+        //war
         combat(enemy_forces_assembled, get_class_decision);
+        //win when everyone is dead
         win_condition();
+        // if an enemy is still alive in another room, go find them
         navigational_console_command();
      }}
 
     return 0;
 }
 
-//NAVIGATIONAL COMMANDS 
+//NAVIGATIONAL FUNCTIONS 
 
-void load_game_map(){
-    //make a Euler path possib
+
+
+void load_game_map()
+/* There is a illustrated game map that is supplied as part of project that more clearly shows the edges between the nodes.
+    Every node has an even degree sequence except node 3. There are some loops meant to trick the player. 
+    Node 3 has more indegrees than outdegrees making it tricky for the player to navigate to all the rooms.
+    Node 9 pushes you back to 1 and 2. It makes it easier to navigate to the other side of the map once your reach the end.
+
+    
+*/
+{
+    //make a Euler path possib 
 
 // vertex 0 degree sequence is 2
 cartograph.create_edge(*arena.at(0), *arena.at(1));
@@ -378,17 +401,27 @@ cartograph.create_edge(*arena.at(9), *arena.at(2));
 }
 
 void move_user(int current_location, string console_decision){
+/* Purpose: Bus object for the player and the map. 
+Param:current_location: - current_location comes from the player.get_int_location() method
+Param: console_decision - comes from the terminal command input. The function is meant to be called inside another function that will have this param.
+Returns: Nothing. User is moved from beginning room to ending room based on choice.
 
+*/
+//get a vector of pointers of the rooms the current room is connected to
 vector<Room*> test_first_connect = cartograph.get_connected_rooms(*arena.at(current_location));
+//unpack the room locations into pointers for easier access
 Room *left_room = test_first_connect[0];
 Room *right_room = test_first_connect[1];
 
+//get the both rooms ready to be passed into the user depending upon the receiving input. Dereference each room b/c they're still pointers here.
 string left_room_name = (*left_room).get_node_name();
 int left_room_designation = (*left_room).get_node_designation();
 
 
 string right_room_name = (*right_room).get_node_name();
 int right_room_designation = (*right_room).get_node_designation();
+
+//create if/else statement to assign either left room or right room as new user room.
 
 if(console_decision == "left" || console_decision == "Left"){
     player_one.set_int_location(left_room_designation);
@@ -409,6 +442,9 @@ else if(console_decision == "right" || console_decision == "Right"){
 
 
 void navigational_console_command()
+/* Purpose: Provide a uniform way for the program to accept input from the user and map those inputs to various functions
+
+*/
 {
     string console_navigational_command;
     cout << "You are currently in " << player_one.get_string_location() << endl;
@@ -416,6 +452,7 @@ void navigational_console_command()
     cout << "Left   Right" << endl;
     cin >> console_navigational_command;
 
+    // if user selects a navigational command, call move_user, and add to the room count of rooms visited.
     if(console_navigational_command == "left" || console_navigational_command == "Left" ||
         console_navigational_command == "right" || console_navigational_command == "Right")
 
@@ -424,22 +461,28 @@ void navigational_console_command()
     move_user(player_one.get_int_location(), console_navigational_command);
     
     }
-
+    // if user doesn't want to play anymore. call exit()
     else if(console_navigational_command == "quit" || console_navigational_command == "Quit")
     {exit(EXIT_SUCCESS);}
 
-
+    //recite location to user on request
     else if(console_navigational_command == "location" || console_navigational_command == "Location")
     {player_one.get_string_location();}
 
+    //recite stats to user on request
     else if(console_navigational_command == "stats" || console_navigational_command == "Stats")
     {show_all_player_stats(player_one);}
 
+    // display inventory upon request
+    else if(console_navigational_command == "equipment" || console_navigational_command == "Equipment"){
+        display_equipment(get_class_decision);
+    }
 
+    // if user explicitly asks for help, give them the help dialogue
     else if (console_navigational_command == "help" || console_navigational_command == "Help")
         {help_screen( player_in_combat,  get_class_decision, player_backpack);}
-    
 
+    // catch everything else with the help dialogue
     else {help_screen( player_in_combat,  get_class_decision, player_backpack);}
 
 
@@ -449,14 +492,18 @@ void navigational_console_command()
 //HOUSEKEEPING FUNCTIONS
 
 void help_screen(bool combat_flag, int class_selection, Inventory bag)
-/*FUNCTION DEFINITION
-Output text to console to show user valid commands. 
-Based on expression combat, which is a global variable, set to indicate combat loop
+/*
+Purpose: Output text to console to show user valid commands. 
+Param:combat_flag: Global flag meant to indicate whether user is in combat or not. In practice, the respective functions that call
+this function override the global flag but keeping it for continuity purposes.
+Param:class_selection: Based on the user input for class selection. 
+Param:Inventory Bag: Based on global struct object Inventory. Checks if users has weapons and shields equip. 
 */
  {
 
     if (combat_flag)
-    {   cout << "Valid combat commands are the following:" << endl;
+    {   cout << "\n";
+        cout << "Valid combat commands are the following:" << endl;
         if(!bag.weapon_equipped) cout << "Punch    Potion" << endl;
         if (class_selection == 1 && bag.weapon_equipped)
         cout << "Slash  Potion" << endl;
@@ -465,23 +512,26 @@ Based on expression combat, which is a global variable, set to indicate combat l
         else if (class_selection == 3 && bag.weapon_equipped)
         cout << "Stab       Potion" << endl;}
     
-    else {  cout << "Valid navigational commands are the following:" << endl;
+    else {  
+            cout << "\n";
+            cout << "Valid navigational commands are the following:" << endl;
             cout << "Left   Right" << endl;
             cout << "To quit the game, press quit." << endl;
-            cout << "To check your inventory, press display equipment" << endl;
+            cout << "To check your inventory, press equipment" << endl;
             cout << "To check your stats, press stats." << endl;
             cout << "To check your location, press location" << endl;}
             cout << "If you would like to see these options again, press help" << endl;
+            cout << "\n\n";
 
 
 };
 
 void welcome_screen()
 /*
-FUNCTION DEFINITION
-create file with text to display welcome message to user
-open file with stream and display the help_screen()
-ASCII art for Title ??? Saved as png file and also called with file_stream
+Purpose: Stream files in that are used to welcome the user and introduce the game.
+Notes:
+    No Params but expects a file with game_name.txt and game_welcome.txt in the same file directory as the program.
+
 REFERENCETHIS C++ for the Absolute Beginner, pg 277 */
 
 {
@@ -519,6 +569,9 @@ help_screen(false_combat_flag, false_class_selection, false_inventory_object);
 // PLAYER FUNCTIONS
 
 int class_choice()
+/*
+Purpose: Ask the user to select a class and then record the decision for gameplay mechanics.
+*/
 {
     int user_class_choice;
     cout << "Please select your class:" << endl;
@@ -531,7 +584,9 @@ int class_choice()
     return user_class_choice;
 };
 
-void name_decision(){
+void name_decision()
+/* Purpose: Ask the user for their name and record the decision */ 
+{
     string name;
     cout << "What do you call yourself, noble challenger?" << endl;
     cin >> name;
@@ -540,7 +595,11 @@ void name_decision(){
     cout << "\n\n";
 };
 
-template<class T> void show_all_player_stats(T agent){
+template<class T> void show_all_player_stats(T agent)
+/* Purpose: Provide a generic function to accept the stats of the player and the enemy
+   on demand. */
+
+{
     cout << "\n\n";
     cout << agent.get_name();
     cout << " has the following stats:" << endl;
@@ -549,11 +608,21 @@ template<class T> void show_all_player_stats(T agent){
     cout << agent.get_spellpower() << " spellpower." << endl;
     cout << agent.get_defense() << " defense." << endl;
     cout << agent.get_dexterity() << " dexterity." << endl;
+    cout << "\n\n";
 
 
 };
 
-void ready_player_one(int class_choice) {
+void ready_player_one(int class_choice) 
+/* Purpose: Make 3 "classes" from the base class. Meant to escape scope issues.
+
+Notes:
+    Warrior - Tank character. Warrior is easy mode. Very hard to die and deals a lot of damage.
+    Mage - Medium level difficulty. Basically a glass cannon. Especially once the character has all the upgrades.
+    Rogue - most fun/frustrating. Completely based on RNG. The rogue has the ability to insta kill any other character
+    but in turn can be obliterated in 1 - 2 hits.
+*/
+ {
     switch(class_choice){
         case 1:
             cout << "\n\n";
@@ -588,28 +657,26 @@ void ready_player_one(int class_choice) {
 
 void combat(vector <Enemy> &enemy_forces, int class_selection)
 /* 
-FUNCTION EXPLANATION & PSEUDOCODE
-Player and Enemy are both global variables. Called in the function.
-Make a do while loop for all of this based on the player.is_alive() for both player and enemy.
-Both player and enemy health will be called at the start of the loop.
-The loop will Pokemon style.
-"An enemy has appeared"
-Fight   Run
-If Fight then start combat. 
-    The derived classes of player will have an attack method. Enemy is from player too. 
+Purpose: Specifies battle mechanics between player and enemy forces.
+Param: &enemy_forces -- CPP allows for pass by reference with vectors/arrays provided the & symbol is specified in function calls.
+Param: class_selection -- User decided input on the types of powerups to expect during playthrough.
+
+Notes:
+    Both player and enemy health will be called at the start of the loop.
+    The loop will Pokemon style.
+    "An enemy has appeared"
     Combat Options now will be valid in the parse input class (Flag set to True. Again global variable in the class)
     Attack          Drink Potion
-    Depending upon the class, it will expose different attacks which are just different scaled hits
-    If the player is dead then, then also game_over. (Game over will be a Global Flag)
-Else Run
-    Use random library to find if run is successful. 
-    Switch statement inside of the else block, based on success we need to break out of everything.
+    Depending upon the class, it will expose different attacks which are just different scaled hits based on attributes
+    If the player is dead then, then say game over and exit game. (Game running will be a Global Flag)
     
      */
 {   
+    //get the player location and match the int location with the position of the enemy in the vector.
     int get_player_location = player_one.get_int_location();
     int player_attack,player_defense;
     bool player_in_combat = true;
+    //Issue a pointer to the name (enemy_forces) because all changes downstream need to be reflected in source.
     Enemy *opponent = &enemy_forces.at(get_player_location);
     string battle_console_decision;
 
@@ -617,6 +684,8 @@ Else Run
    { 
     cout << "\n\n";
     cout << "A foe has appeared!" << endl;}
+
+    //Make a while loop for all of this based on the player.is_alive() for both player and enemy.
 
     while((*opponent).still_alive() && player_one.still_alive()){
     cout << "What will you do?" << endl;
@@ -635,19 +704,26 @@ Else Run
     if(battle_console_decision == "Potion" || battle_console_decision == "potion")
     {use_potion(); }
 
-    else if (battle_console_decision == "Fireball" || battle_console_decision == "fireball" 
+    //Enter loop if the user enters the respective "attack" command. 
+    //If weapon is equipped, treat the fireball, slash, stab keywords as valid 
+    //if weapon is not equipped, only punch is valid
+    else if (((battle_console_decision == "Fireball" || battle_console_decision == "fireball" 
             || battle_console_decision == "Slash" || battle_console_decision == "slash" 
-            || battle_console_decision == "Stab" || battle_console_decision == "stab" 
-            || battle_console_decision == "Punch" || battle_console_decision == "punch" )
+            || battle_console_decision == "Stab" || battle_console_decision == "stab") && player_backpack.weapon_equipped) ||
+
+            ((battle_console_decision == "Punch" || battle_console_decision == "punch" ) && !player_backpack.weapon_equipped))
     {
-        
+    // generate random distribution for both attack and defense. Scaled to player stats with the same seed each turn of combat. 
     random_device player_seed;
     mt19937 generate_player_parameters(player_seed());
+    //base atack off player dexterity. Provide a floor of 12.
     uniform_int_distribution<int> player_attack_distribution(12, 12 + player_one.get_dexterity());
+    //base defense off existing defense
     uniform_int_distribution<int> player_defense_distribution(5, floor(player_one.get_defense()/2));
     auto player_attack_stats_scaled = player_attack_distribution(generate_player_parameters);
     auto player_defense_stats_scaled = player_defense_distribution(generate_player_parameters);
 
+    // based on class selection call different user attributes to wage war.
     if (class_selection == 2 && player_backpack.weapon_equipped) {
         player_attack = player_one.get_spellpower() + player_attack_stats_scaled;
         player_defense = player_one.get_defense() + player_defense_stats_scaled;}
@@ -656,8 +732,7 @@ Else Run
      player_defense = player_one.get_defense() + player_defense_stats_scaled;}
 
 
-
-
+   // same as for enemy, as for player.
     random_device enemy_seed;
     mt19937 generate_enemy_parameters(enemy_seed()); //https://en.cppreference.com/w/cpp/numeric/random/uniform_int_distribution
     uniform_int_distribution<int> enemy_attack_distribution(40, 40 + (*opponent).get_dexterity());
@@ -668,11 +743,11 @@ Else Run
     int enemy_attack = (*opponent).get_strength() + enemy_attack_stats_scaled;
     int enemy_defense = (*opponent).get_defense() + enemy_defense_stats_scaled;
 
-
+    // generate the damage done this turn
     int player_turn_attack_enemy = player_attack - enemy_defense;
     int enemy_turn_attack_player = enemy_attack - player_defense;
 
-    
+    //Player attacks first
     int enemy_current_health = (*opponent).get_health() - player_turn_attack_enemy;
     (*opponent).set_health(enemy_current_health);
     cout << "\n\n";
@@ -680,6 +755,7 @@ Else Run
     player_turn_attack_enemy = 0;
     cout << "You attack for " << player_turn_attack_enemy << " damage." << endl;
     
+    // if the opponent is dead then break out of the loop before enemy can attack.
     if (!(*opponent).still_alive())
     {
       cout << "Enemy defeated!" << endl;
@@ -687,9 +763,11 @@ Else Run
       enemy_kill_counter ++;
       break; }
     
+    // if enemy is still alive, then attack the player
     int player_current_health = player_one.get_health() - enemy_turn_attack_player;
     player_one.set_health(player_current_health);
 
+    // output results of this turn to the console.
     cout << "The enemy has " << enemy_current_health << " health remaining." << endl;
     cout << "\n";
 
@@ -701,6 +779,7 @@ Else Run
 
     else {help_screen(player_in_combat, class_selection, player_backpack);}}
 
+    // if the player has died, then initiate exit()
     if (!player_one.still_alive())
     {cout << "Game Over." << endl;
      exit(EXIT_SUCCESS); }
@@ -709,18 +788,34 @@ Else Run
 
 
 //INVENTORY FUNCTIONS
-void use_potion(){
+void use_potion()
+/*
+Purpose: Defines interaction between the player, inventory, navigational objects.
+When a player inputs potion or Potion into the console, a potion is consumed from inventory,
+and the effect is added to the player.
 
+
+POTION COUNT: 20
+POTION EFFECTIVENESS: 40
+
+
+
+*/
+{
+    //check inventory for available potions
     if(player_backpack.potions >= 1){
     cout << "\n\n";
     cout << "40 Health added." << endl;;
     //inventory object potions -= 1
     player_backpack.potions -= 1;
+    // add the effect to the player
     int top_up = player_one.get_health() + 40;
     player_one.set_health(top_up);
+    //console output
     cout << "You now have " << player_one.get_health() << " HP." << endl;
     cout << "There are " << player_backpack.potions << " potions remaining." << endl;
     cout << "\n\n";}
+    // if player does not have any potions remaining. Then say sorry :( 
     else{
         cout << "\n\n";
         cout << "Sorry. No more potions.";}
@@ -728,7 +823,17 @@ void use_potion(){
     
 };
 
-void confirm_armor_equip(int class_selection){
+void confirm_armor_equip(int class_selection)
+/*
+Purpose: Define defensive upgrade interaction between player and inventory. This directly affects combat as well.
+
+Notes:
+    WARRIOR UPGRADE - +20
+    MAGE UPGRADE - +15
+    ROGUE UPGRADE - +8
+
+*/
+{
     if(class_selection == 1)
     {   cout << "\n\n";
         cout << "Shield Equipped!" << endl;
@@ -758,7 +863,18 @@ void confirm_armor_equip(int class_selection){
 };
 
 
-void confirm_weapon_equip(int class_selection){
+void confirm_weapon_equip(int class_selection)
+/*
+Purpose: Provide interaction between the player and inventory objects based on class selection.
+
+Notes:
+     Warrior - +10 attack power
+     Mage - +50 spell power
+     Rogue - +60 dexterity
+
+
+*/
+{
     if(class_selection == 1)
     {   cout << "\n\n";
         cout << "Sword equipped! Slay them all." << endl;
@@ -780,7 +896,7 @@ void confirm_weapon_equip(int class_selection){
       {
       cout << "\n\n";
       cout << "Daggers Equipped! Strike swiftly and may the shadows be your guide." << endl;
-      int new_attack = player_one.get_dexterity() + 45;
+      int new_attack = player_one.get_dexterity() + 60;
       player_one.set_dexterity(new_attack);
       cout << "You are now capable of dealing " << player_one.get_dexterity() << " damage." << endl;
       player_backpack.weapon_equipped = true;}
@@ -788,7 +904,11 @@ void confirm_weapon_equip(int class_selection){
 
 };
 
-void place_weapon_in_room(int user_class, int room_count){
+void place_weapon_in_room(int user_class, int room_count)
+/* Purpose : Extend interaction of user and offensive inventory objects to Room.
+   :Param: room_count - comes from the navigational control functions. Supplied here to trigger event.
+
+*/{
     if (room_count == 4){
     string user_decision;
     cout << "\n\n";
@@ -797,12 +917,17 @@ void place_weapon_in_room(int user_class, int room_count){
     cin >> user_decision;
     if(user_decision == "Yes" || user_decision =="yes")
     {confirm_weapon_equip(user_class);}}
+    //if user the user has opted out of upgrades
     else if (!(user_class == 1 || user_class == 2 || user_class == 3))
     {cout << "You can't pick it up!" << endl;} 
 
 };
 
-void place_armor_in_room(int user_class, int room_count){
+void place_armor_in_room(int user_class, int room_count)
+/* Purpose : Extend interaction of user and defensive inventory objects to Room.
+   :Param: room_count - comes from the navigational control functions. Supplied here to trigger event.
+
+*/{
     if(room_count == 2){
     string user_decision;
     cout << "\n\n";
@@ -811,11 +936,15 @@ void place_armor_in_room(int user_class, int room_count){
     cin >> user_decision;
     if(user_decision == "Yes" || user_decision == "yes")
     {confirm_armor_equip(user_class);}}
+    //if user the user has opted out of upgrades
     else if (!(user_class == 1 || user_class == 2 || user_class == 3))
     {cout << "You can't pick it up!" << endl;} 
 };
 
-void display_equipment(int class_selection){
+void display_equipment(int class_selection)
+/* Purpose: Enumerate the inventory object on command.
+   :Param: class_selection - user input on class selection
+*/{
     cout << "\n\n";
     cout << "Inventory:" << endl;
     if(player_backpack.potions >= 1)
@@ -845,11 +974,18 @@ void display_equipment(int class_selection){
     {cout << "Arcane Armor." << endl;}
     else if(class_selection == 3 && player_backpack.armor_equipped)
     {cout << "Leather Cowl." << endl;}
+    cout << "\n\n";
 };
 
 //WIN
 
-void win_condition(){
+void win_condition()
+/*Purpose: Define a successful exit condition from the loop.
+    Notes:    
+        Player has to kill all enemies
+
+*/
+{
     if (enemy_kill_counter == 9){
 
      cout << "You pick up a key from the last fallen opponent." << endl;
